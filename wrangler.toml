@@ -1,0 +1,8 @@
+# Configuração do Cloudflare Pages Functions
+name = "frontend-pizzaria"
+compatibility_date = "2024-01-01"
+
+# KV Namespace para os links encurtados
+[[kv_namespaces]]
+binding = "SHORT_LINKS"
+id = "50f014940dd141cbad2c524e1e5c38cc"  # Substituir pelo ID real do KV
