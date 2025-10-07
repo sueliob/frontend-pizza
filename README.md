@@ -54,7 +54,7 @@ Configure no **Cloudflare Pages** (Settings → Environment variables):
 
 ```env
 # API Backend (OBRIGATÓRIO!)
-VITE_API_BASE=https://backend-pizzaria.netlify.app/.netlify/functions/api
+VITE_API_BASE=https://backend-pizzaria.SEU_SUBDOMAIN.workers.dev/api
 
 # Google Maps (opcional)
 VITE_GOOGLE_MAPS_API_KEY=sua_chave_google_maps
@@ -64,7 +64,10 @@ VITE_CLOUDINARY_CLOUD_NAME=seu_cloud_name
 VITE_CLOUDINARY_UPLOAD_PRESET=seu_preset
 ```
 
-**⚠️ IMPORTANTE:** Se não configurar `VITE_API_BASE`, você receberá erro 405 ao tentar fazer login no admin!
+**⚠️ IMPORTANTE:** 
+- Se não configurar `VITE_API_BASE`, você receberá erro 405 ao tentar fazer login no admin!
+- O backend agora usa **Cloudflare Workers** (não mais Netlify Functions)
+- URL da API mudou de `.netlify.app/.netlify/functions/api` para `.workers.dev/api`
 
 ### 3. Deploy Automático
 1. Conecte repositório ao Cloudflare Pages
@@ -181,11 +184,47 @@ npm run type-check   # Verificar TypeScript
 
 ## 🔐 Autenticação Admin
 
-O painel administrativo usa autenticação JWT:
-1. Login com credenciais
-2. Token armazenado no localStorage
-3. Renovação automática de sessão
-4. Logout seguro
+O painel administrativo usa autenticação JWT + Refresh Tokens:
+
+### **Fluxo de Autenticação**
+1. **Login**: Credenciais → Retorna `access_token` (15min) + cookies HttpOnly
+2. **Access Token**: Armazenado em memória (estado React)
+3. **Refresh Token**: Cookie HttpOnly, seguro, rotacionado a cada uso
+4. **CSRF Protection**: Cookie `csrf_token` + header `x-csrf` obrigatório
+5. **Renovação**: Automática via `/api/admin/refresh` quando token expira
+6. **Logout**: Revoga sessão no banco + limpa cookies
+
+### **Implementação no Frontend**
+```javascript
+// Login
+const response = await fetch(`${API_BASE}/admin/login`, {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  credentials: 'include', // Importante para cookies!
+  body: JSON.stringify({ username, password })
+});
+
+const { access_token } = await response.json();
+
+// Requests autenticados
+await fetch(`${API_BASE}/admin/flavors`, {
+  headers: { 
+    'Authorization': `Bearer ${access_token}`,
+    'Content-Type': 'application/json'
+  },
+  credentials: 'include' // Envia cookies automaticamente
+});
+
+// Refresh token (quando access_token expirar)
+const csrfToken = getCookie('csrf_token');
+await fetch(`${API_BASE}/admin/refresh`, {
+  method: 'POST',
+  headers: { 'x-csrf': csrfToken },
+  credentials: 'include'
+});
+```
+
+**⚠️ Importante:** O frontend deve enviar `credentials: 'include'` em todas as requisições para incluir cookies HttpOnly.
 
 ## 📊 Monitoramento
 
@@ -218,8 +257,13 @@ SHORT_LINKS binding deve estar ativo
 
 **Admin não carrega:**
 ```bash
-# Verificar autenticação
-localStorage.getItem('admin_token')
+# Verificar cookies de autenticação (DevTools → Application → Cookies)
+# Deve ter: refresh_token (HttpOnly) e csrf_token
+
+# Verificar se access_token está em memória (estado React)
+# Se 401: implementar lógica de refresh automático
+
+# Verificar se credentials: 'include' está em todas as requisições
 ```
 
 ## 🎯 Melhorias Implementadas
