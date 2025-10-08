@@ -54,7 +54,7 @@ Configure no **Cloudflare Pages** (Settings → Environment variables):
 
 ```env
 # API Backend (OBRIGATÓRIO!)
-VITE_API_BASE=https://backend-pizzaria.SEU_SUBDOMAIN.workers.dev/api
+VITE_API_BASE=https://backend-pizza.SEU_SUBDOMAIN.workers.dev/api
 
 # Google Maps (opcional)
 VITE_GOOGLE_MAPS_API_KEY=sua_chave_google_maps

@@ -64,12 +64,39 @@ export const getApiUrl = (endpoint: string) => {
   }
 };
 
-// 🚀 Enhanced API functions with error handling
+// 🛡️ Defensive API wrapper - handles non-JSON responses gracefully
+export async function apiRequest(path: string, init: RequestInit = {}) {
+  const url = getApiUrl(path);
+  
+  const res = await fetch(url, {
+    ...init,
+    headers: { 
+      'Content-Type': 'application/json', 
+      ...(init.headers || {}) 
+    },
+    credentials: 'include', // Support HttpOnly cookies for refresh tokens
+  });
+  
+  // Check if response is JSON before parsing
+  const contentType = res.headers.get('content-type') || '';
+  if (!contentType.includes('application/json')) {
+    const text = await res.text();
+    throw new Error(`Backend returned non-JSON (${res.status}): ${text.slice(0, 120)}...`);
+  }
+  
+  const data = await res.json();
+  
+  if (!res.ok) {
+    throw new Error(data?.error || data?.message || `HTTP ${res.status}`);
+  }
+  
+  return data;
+}
+
+// 🚀 Enhanced API functions using defensive wrapper
 export const getDoughTypes = async () => {
   try {
-    const response = await fetch(getApiUrl('/dough-types'));
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    return await response.json();
+    return await apiRequest('/dough-types');
   } catch (error) {
     console.error('❌ getDoughTypes failed:', error);
     throw error;
@@ -78,9 +105,7 @@ export const getDoughTypes = async () => {
 
 export const getExtras = async () => {
   try {
-    const response = await fetch(getApiUrl('/extras'));
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    return await response.json();
+    return await apiRequest('/extras');
   } catch (error) {
     console.error('❌ getExtras failed:', error);
     throw error;
@@ -89,9 +114,7 @@ export const getExtras = async () => {
 
 export const getFlavors = async (category: string) => {
   try {
-    const response = await fetch(getApiUrl(`/flavors/${category}`));
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    return await response.json();
+    return await apiRequest(`/flavors/${category}`);
   } catch (error) {
     console.error(`❌ getFlavors(${category}) failed:`, error);
     throw error;
@@ -100,13 +123,10 @@ export const getFlavors = async (category: string) => {
 
 export const calculateDistance = async (data: any) => {
   try {
-    const response = await fetch(getApiUrl('/calculate-distance'), {
+    return await apiRequest('/calculate-distance', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
     });
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    return await response.json();
   } catch (error) {
     console.error('❌ calculateDistance failed:', error);
     throw error;
