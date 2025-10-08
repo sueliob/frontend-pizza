@@ -135,7 +135,7 @@ if (typeof window !== 'undefined') {
   
   // 🔍 Test backend connectivity (with error handling)
   try {
-    fetch(getApiUrl('/'))
+    fetch(getApiUrl('/health'))
       .then(response => response.json())
       .then(data => {
         console.log('✅ Backend connectivity test:', data);
